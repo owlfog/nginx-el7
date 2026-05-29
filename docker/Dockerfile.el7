@@ -1,0 +1,39 @@
+FROM centos:7
+
+ENV LANG=C \
+    LC_ALL=C
+
+RUN set -eux; \
+    sed -i \
+      -e 's/^mirrorlist=/#mirrorlist=/g' \
+      -e 's|^#baseurl=http://mirror.centos.org/centos/$releasever|baseurl=http://vault.centos.org/7.9.2009|g' \
+      /etc/yum.repos.d/CentOS-*.repo; \
+    yum -y install \
+      ca-certificates \
+      coreutils \
+      createrepo \
+      curl \
+      findutils \
+      gcc \
+      GeoIP-devel \
+      gnupg2 \
+      gzip \
+      make \
+      openssl \
+      openssl-devel \
+      pcre-devel \
+      perl-devel \
+      perl-ExtUtils-Embed \
+      redhat-rpm-config \
+      rpm-build \
+      rpm-sign \
+      shadow-utils \
+      systemd \
+      systemd-units \
+      tar \
+      which \
+      zlib-devel; \
+    yum clean all; \
+    rm -rf /var/cache/yum
+
+WORKDIR /work

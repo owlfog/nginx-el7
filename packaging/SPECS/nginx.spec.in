@@ -1,0 +1,232 @@
+%global nginx_user nginx
+%global nginx_group nginx
+%global nginx_home %{_localstatedir}/cache/nginx
+
+Name: nginx
+Epoch: 1
+Version: @NGINX_VERSION@
+Release: @NGINX_RELEASE@%{?dist}.rhcustom
+Summary: High performance web server and reverse proxy
+Group: System Environment/Daemons
+License: BSD
+URL: https://nginx.org/
+Vendor: Rosa Khutor
+Packager: DevOps/Rosa Khutor
+
+Source0: nginx-%{version}.tar.gz
+Source1: nginx.service
+Source2: nginx.logrotate
+Source3: nginx.conf
+Source4: default.conf
+Source5: nginx.sysconfig
+
+BuildRequires: gcc
+BuildRequires: GeoIP-devel
+BuildRequires: make
+BuildRequires: openssl-devel >= 1.0.2
+BuildRequires: pcre-devel
+BuildRequires: perl-devel
+BuildRequires: perl-ExtUtils-Embed
+BuildRequires: zlib-devel
+BuildRequires: systemd
+
+Requires(pre): shadow-utils
+Requires: openssl >= 1.0.2
+Provides: nginx = 1:%{version}-%{release}
+Provides: webserver
+
+%description
+nginx is an HTTP and reverse proxy server, a mail proxy server, and a generic
+TCP/UDP proxy server.
+
+%package module-geoip
+Summary: nginx GeoIP dynamic module
+Group: System Environment/Daemons
+Requires: %{name}%{?_isa} = %{epoch}:%{version}-%{release}
+Requires: GeoIP
+
+%description module-geoip
+Dynamic GeoIP module for nginx. It provides ngx_http_geoip_module.so and
+supports geoip_country, geoip_city, and related variables.
+
+%package module-perl
+Summary: nginx Perl dynamic module
+Group: System Environment/Daemons
+Requires: %{name}%{?_isa} = %{epoch}:%{version}-%{release}
+Requires: perl
+Requires: perl(:MODULE_COMPAT_%{perl_version})
+
+%description module-perl
+Dynamic Perl module for nginx. It provides ngx_http_perl_module.so and supports
+perl_set and related embedded Perl directives.
+
+%prep
+%setup -q
+
+%build
+./configure \
+    --prefix=%{_sysconfdir}/nginx \
+    --sbin-path=%{_sbindir}/nginx \
+    --modules-path=%{_libdir}/nginx/modules \
+    --conf-path=%{_sysconfdir}/nginx/nginx.conf \
+    --error-log-path=%{_localstatedir}/log/nginx/error.log \
+    --http-log-path=%{_localstatedir}/log/nginx/access.log \
+    --pid-path=%{_localstatedir}/run/nginx.pid \
+    --lock-path=%{_localstatedir}/run/nginx.lock \
+    --http-client-body-temp-path=%{nginx_home}/client_temp \
+    --http-proxy-temp-path=%{nginx_home}/proxy_temp \
+    --http-fastcgi-temp-path=%{nginx_home}/fastcgi_temp \
+    --http-uwsgi-temp-path=%{nginx_home}/uwsgi_temp \
+    --http-scgi-temp-path=%{nginx_home}/scgi_temp \
+    --user=%{nginx_user} \
+    --group=%{nginx_group} \
+    --with-compat \
+    --with-file-aio \
+    --with-threads \
+    --with-http_addition_module \
+    --with-http_auth_request_module \
+    --with-http_dav_module \
+    --with-http_flv_module \
+    --with-http_gunzip_module \
+    --with-http_gzip_static_module \
+    --with-http_geoip_module=dynamic \
+    --with-http_mp4_module \
+    --with-http_perl_module=dynamic \
+    --with-http_random_index_module \
+    --with-http_realip_module \
+    --with-http_secure_link_module \
+    --with-http_slice_module \
+    --with-http_ssl_module \
+    --with-http_stub_status_module \
+    --with-http_sub_module \
+    --with-http_v2_module \
+    --with-mail \
+    --with-mail_ssl_module \
+    --with-stream \
+    --with-stream_realip_module \
+    --with-stream_ssl_module \
+    --with-stream_ssl_preread_module \
+    --with-cc-opt="%{optflags} -fPIC" \
+    --with-ld-opt="-Wl,-z,relro -Wl,-z,now -pie"
+make %{?_smp_mflags}
+
+%install
+rm -rf %{buildroot}
+make install DESTDIR=%{buildroot}
+
+mkdir -p %{buildroot}%{_sysconfdir}/nginx/conf.d
+mkdir -p %{buildroot}%{_sysconfdir}/sysconfig
+mkdir -p %{buildroot}%{_sysconfdir}/logrotate.d
+mkdir -p %{buildroot}%{_datadir}/nginx
+mkdir -p %{buildroot}%{_libdir}/nginx/modules
+mkdir -p %{buildroot}%{_localstatedir}/cache/nginx
+mkdir -p %{buildroot}%{_localstatedir}/log/nginx
+
+if [ -d %{buildroot}%{_sysconfdir}/nginx/html ]; then
+    mv %{buildroot}%{_sysconfdir}/nginx/html %{buildroot}%{_datadir}/nginx/html
+fi
+
+rm -f %{buildroot}%{_sysconfdir}/nginx/nginx.conf
+install -m 0644 %{SOURCE3} %{buildroot}%{_sysconfdir}/nginx/nginx.conf
+install -m 0644 %{SOURCE4} %{buildroot}%{_sysconfdir}/nginx/conf.d/default.conf
+install -m 0644 %{SOURCE5} %{buildroot}%{_sysconfdir}/sysconfig/nginx
+install -m 0644 %{SOURCE2} %{buildroot}%{_sysconfdir}/logrotate.d/nginx
+install -D -m 0644 %{SOURCE1} %{buildroot}%{_unitdir}/nginx.service
+install -D -m 0644 objs/nginx.8 %{buildroot}%{_mandir}/man8/nginx.8
+
+mkdir -p %{buildroot}%{perl_vendorarch}/auto
+if [ -f %{buildroot}%{perl_sitearch}/nginx.pm ]; then
+    mv %{buildroot}%{perl_sitearch}/nginx.pm %{buildroot}%{perl_vendorarch}/nginx.pm
+fi
+if [ -d %{buildroot}%{perl_sitearch}/auto/nginx ]; then
+    mv %{buildroot}%{perl_sitearch}/auto/nginx %{buildroot}%{perl_vendorarch}/auto/
+fi
+if [ -f %{buildroot}%{_prefix}/local/share/man/man3/nginx.3pm ]; then
+    install -D -m 0644 %{buildroot}%{_prefix}/local/share/man/man3/nginx.3pm \
+        %{buildroot}%{_mandir}/man3/nginx.3pm
+fi
+
+rm -f %{buildroot}%{perl_archlib}/perllocal.pod
+rm -f %{buildroot}%{perl_vendorarch}/auto/nginx/.packlist
+rm -rf %{buildroot}%{_prefix}/local/share/man
+rmdir --ignore-fail-on-non-empty %{buildroot}%{perl_sitearch}/auto 2>/dev/null || :
+rmdir --ignore-fail-on-non-empty %{buildroot}%{perl_sitearch} 2>/dev/null || :
+rmdir --ignore-fail-on-non-empty %{buildroot}%{_prefix}/local/lib64 2>/dev/null || :
+rmdir --ignore-fail-on-non-empty %{buildroot}%{_prefix}/local/share 2>/dev/null || :
+rmdir --ignore-fail-on-non-empty %{buildroot}%{_prefix}/local 2>/dev/null || :
+
+chmod 0644 %{buildroot}%{perl_vendorarch}/nginx.pm
+[ ! -f %{buildroot}%{perl_vendorarch}/auto/nginx/nginx.bs ] || \
+    chmod 0644 %{buildroot}%{perl_vendorarch}/auto/nginx/nginx.bs
+chmod 0755 %{buildroot}%{perl_vendorarch}/auto/nginx/nginx.so
+
+ln -s ../../%{_lib}/nginx/modules %{buildroot}%{_sysconfdir}/nginx/modules
+
+%pre
+getent group %{nginx_group} >/dev/null || groupadd -r %{nginx_group}
+getent passwd %{nginx_user} >/dev/null || \
+    useradd -r -g %{nginx_group} -d %{nginx_home} -s /sbin/nologin \
+    -c "nginx user" %{nginx_user}
+exit 0
+
+%post
+/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+if [ "$1" -eq 1 ]; then
+    /usr/bin/systemctl preset nginx.service >/dev/null 2>&1 || :
+fi
+
+%preun
+if [ "$1" -eq 0 ]; then
+    /usr/bin/systemctl --no-reload disable nginx.service >/dev/null 2>&1 || :
+    /usr/bin/systemctl stop nginx.service >/dev/null 2>&1 || :
+fi
+
+%postun
+/usr/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+
+%files
+%defattr(-,root,root,-)
+%license LICENSE
+%doc CHANGES
+%{_sbindir}/nginx
+%{_unitdir}/nginx.service
+%dir %{_sysconfdir}/nginx
+%dir %{_sysconfdir}/nginx/conf.d
+%{_sysconfdir}/nginx/modules
+%config(noreplace) %{_sysconfdir}/nginx/nginx.conf
+%config(noreplace) %{_sysconfdir}/nginx/conf.d/default.conf
+%config(noreplace) %{_sysconfdir}/nginx/mime.types
+%config(noreplace) %{_sysconfdir}/nginx/fastcgi.conf
+%config(noreplace) %{_sysconfdir}/nginx/fastcgi_params
+%config(noreplace) %{_sysconfdir}/nginx/scgi_params
+%config(noreplace) %{_sysconfdir}/nginx/uwsgi_params
+%config(noreplace) %{_sysconfdir}/nginx/koi-utf
+%config(noreplace) %{_sysconfdir}/nginx/koi-win
+%config(noreplace) %{_sysconfdir}/nginx/win-utf
+%config(noreplace) %{_sysconfdir}/nginx/*.default
+%config(noreplace) %{_sysconfdir}/logrotate.d/nginx
+%config(noreplace) %{_sysconfdir}/sysconfig/nginx
+%dir %{_libdir}/nginx
+%dir %{_libdir}/nginx/modules
+%dir %{_datadir}/nginx
+%{_datadir}/nginx/html
+%dir %attr(0755,%{nginx_user},root) %{_localstatedir}/cache/nginx
+%dir %attr(0755,%{nginx_user},root) %{_localstatedir}/log/nginx
+%{_mandir}/man8/nginx.8*
+
+%files module-geoip
+%defattr(-,root,root,-)
+%{_libdir}/nginx/modules/ngx_http_geoip_module.so
+
+%files module-perl
+%defattr(-,root,root,-)
+%{_libdir}/nginx/modules/ngx_http_perl_module.so
+%{perl_vendorarch}/nginx.pm
+%dir %{perl_vendorarch}/auto/nginx
+%{perl_vendorarch}/auto/nginx/nginx.bs
+%{perl_vendorarch}/auto/nginx/nginx.so
+%{_mandir}/man3/nginx.3pm*
+
+%changelog
+* Fri May 29 2026 DevOps/Rosa Khutor - 1:@NGINX_VERSION@-@NGINX_RELEASE@
+- Initial internal EL7 package.
