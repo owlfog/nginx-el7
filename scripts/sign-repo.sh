@@ -11,14 +11,17 @@ REPOMD="$REPO_DIR/repodata/repomd.xml"
 mkdir -p "$GNUPGHOME" dist
 chmod 700 "$GNUPGHOME"
 
+# gpg --import exits 2 on EL7 when the key is already present; fall back to
+# verifying the key is actually there rather than aborting via set -e.
 if [[ -n "${RPM_GPG_PRIVATE_KEY_B64:-}" ]]; then
   printf '%s' "$RPM_GPG_PRIVATE_KEY_B64" | base64 -d | \
-    GNUPGHOME="$GNUPGHOME" gpg --batch --import
+    GNUPGHOME="$GNUPGHOME" gpg --batch --import ||
+    GNUPGHOME="$GNUPGHOME" gpg --batch --list-secret-keys "$RPM_GPG_NAME" >/dev/null 2>&1
 elif [[ -n "${RPM_GPG_PRIVATE_KEY_FILE:-}" ]]; then
-  GNUPGHOME="$GNUPGHOME" gpg --batch --import "$RPM_GPG_PRIVATE_KEY_FILE"
+  GNUPGHOME="$GNUPGHOME" gpg --batch --import "$RPM_GPG_PRIVATE_KEY_FILE" ||
+    GNUPGHOME="$GNUPGHOME" gpg --batch --list-secret-keys "$RPM_GPG_NAME" >/dev/null 2>&1
 elif ! GNUPGHOME="$GNUPGHOME" gpg --batch --list-secret-keys "$RPM_GPG_NAME" >/dev/null 2>&1; then
-  echo "No private key found for RPM_GPG_NAME=$RPM_GPG_NAME" >&2
-  echo "Provide RPM_GPG_PRIVATE_KEY_B64, RPM_GPG_PRIVATE_KEY_FILE, or pre-import it into GNUPGHOME." >&2
+  echo "key '$RPM_GPG_NAME' not found — set RPM_GPG_PRIVATE_KEY_B64 or RPM_GPG_PRIVATE_KEY_FILE" >&2
   exit 1
 fi
 
@@ -27,9 +30,11 @@ if [[ ! -f "$REPOMD" ]]; then
   exit 1
 fi
 
+# --passphrase-fd bypasses pinentry in headless Docker (same path as rpmsign's %__gpg_sign_cmd).
 GNUPGHOME="$GNUPGHOME" gpg --batch --yes --armor --detach-sign \
+  --passphrase-fd 3 \
   --local-user "$RPM_GPG_NAME" \
-  "$REPOMD"
+  "$REPOMD" 3< <(printf '%s' "${RPM_GPG_PASSPHRASE:-}")
 
 GNUPGHOME="$GNUPGHOME" gpg --batch --armor --export "$RPM_GPG_NAME" > "$PUBLIC_KEY_OUT"
 

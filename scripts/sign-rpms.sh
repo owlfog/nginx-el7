@@ -16,8 +16,7 @@ if [[ -n "${RPM_GPG_PRIVATE_KEY_B64:-}" ]]; then
 elif [[ -n "${RPM_GPG_PRIVATE_KEY_FILE:-}" ]]; then
   GNUPGHOME="$GNUPGHOME" gpg --batch --import "$RPM_GPG_PRIVATE_KEY_FILE"
 elif ! GNUPGHOME="$GNUPGHOME" gpg --batch --list-secret-keys "$RPM_GPG_NAME" >/dev/null 2>&1; then
-  echo "No private key found for RPM_GPG_NAME=$RPM_GPG_NAME" >&2
-  echo "Provide RPM_GPG_PRIVATE_KEY_B64, RPM_GPG_PRIVATE_KEY_FILE, or pre-import it into GNUPGHOME." >&2
+  echo "key '$RPM_GPG_NAME' not found — set RPM_GPG_PRIVATE_KEY_B64 or RPM_GPG_PRIVATE_KEY_FILE" >&2
   exit 1
 fi
 
@@ -35,6 +34,11 @@ GNUPGHOME="$GNUPGHOME" rpmsign --addsign \
   "${RPM_FILES[@]}"
 
 GNUPGHOME="$GNUPGHOME" gpg --batch --armor --export "$RPM_GPG_NAME" > "$PUBLIC_KEY_OUT"
-rpm -K "${RPM_FILES[@]}"
+
+RPM_CHECK_DB="$GNUPGHOME/rpmdb"
+mkdir -p "$RPM_CHECK_DB"
+rpm --define "_dbpath $RPM_CHECK_DB" --initdb
+rpm --define "_dbpath $RPM_CHECK_DB" --import "$PUBLIC_KEY_OUT"
+rpm --define "_dbpath $RPM_CHECK_DB" -K "${RPM_FILES[@]}"
 
 echo "RPM public key: $PWD/$PUBLIC_KEY_OUT"

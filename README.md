@@ -106,6 +106,9 @@ RPM_GPG_NAME="Rosa Khutor RPM Signing" make sign-repo
 RPM, а значит и checksum в metadata.
 
 До выполнения `make sign-rpms` проверка `rpm -K` покажет только `digests OK`.
+После подписи `scripts/sign-rpms.sh` импортирует публичный ключ во временную
+rpmdb под `build/gnupg-sign/rpmdb` и проверяет подписи через нее; системный
+rpmdb контейнера не меняется.
 Для боевой выкладки должны быть подписаны и RPM/SRPM, и `repodata/repomd.xml`.
 Если ключ подписи защищен passphrase, в CI нужен заранее настроенный `gpg-agent`;
 практичный вариант для protected runner - отдельный signing subkey без

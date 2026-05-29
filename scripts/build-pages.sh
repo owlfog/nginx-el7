@@ -21,7 +21,7 @@ REPO_PATH="${REPO_PATH#/}"
 REPO_PATH="${REPO_PATH%/}"
 
 if [[ -z "$PAGES_DIR" || "$PAGES_DIR" == "/" ]]; then
-  echo "Refusing to use unsafe PAGES_DIR=$PAGES_DIR" >&2
+  echo "unsafe PAGES_DIR: '$PAGES_DIR'" >&2
   exit 1
 fi
 
@@ -31,14 +31,12 @@ if [[ ! -d "$REPO_DIR/repodata" ]]; then
 fi
 
 if [[ ! -f "$REPO_DIR/repodata/repomd.xml.asc" ]]; then
-  echo "Repo metadata signature not found: $REPO_DIR/repodata/repomd.xml.asc" >&2
-  echo "Run sign-repo before building GitHub Pages." >&2
+  echo "repomd.xml.asc not found: $REPO_DIR/repodata/repomd.xml.asc" >&2
   exit 1
 fi
 
 if [[ ! -f "$KEY_SRC" ]]; then
   echo "GPG public key not found: $KEY_SRC" >&2
-  echo "Run sign-rpms or sign-repo before building GitHub Pages." >&2
   exit 1
 fi
 
@@ -128,11 +126,5 @@ EOF
   echo '</html>'
 } > "$PAGES_DIR/$REPO_PATH/index.html"
 
-if [[ "$PAGES_DIR" = /* ]]; then
-  pages_abs="$PAGES_DIR"
-else
-  pages_abs="$PWD/$PAGES_DIR"
-fi
-
-echo "GitHub Pages directory: $pages_abs"
-echo "Repo file: $pages_abs/$REPO_ID.repo"
+echo "GitHub Pages directory: $(realpath "$PAGES_DIR")"
+echo "Repo file: $(realpath "$PAGES_DIR")/$REPO_ID.repo"
