@@ -1,9 +1,12 @@
 # NGINX RPM для CentOS 7
 
-https://owlfog.github.io/nginx-el7/
+## Статус публикации
 
-Локальная сборка внутреннего RPM `nginx` для EL7/CentOS 7. По умолчанию
-собирается `nginx-1.30.2`, но версия задается параметром `VERSION`.
+[![Build RPM and publish yum repo](https://github.com/owlfog/nginx-el7/actions/workflows/pages.yml/badge.svg?branch=main)](https://github.com/owlfog/nginx-el7/actions/workflows/pages.yml)
+
+- опубликованный yum-репозиторий: [https://owlfog.github.io/nginx-el7/](https://owlfog.github.io/nginx-el7/)
+- файл для подключения: [rosa-nginx-el7.repo](https://owlfog.github.io/nginx-el7/rosa-nginx-el7.repo)
+- публичный GPG-ключ: [RPM-GPG-KEY-rosa-khutor](https://owlfog.github.io/nginx-el7/RPM-GPG-KEY-rosa-khutor)
 
 ## Быстрый старт
 
