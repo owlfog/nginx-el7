@@ -1,5 +1,7 @@
 # NGINX RPM для CentOS 7
 
+https://owlfog.github.io/nginx-el7/
+
 Локальная сборка внутреннего RPM `nginx` для EL7/CentOS 7. По умолчанию
 собирается `nginx-1.30.2`, но версия задается параметром `VERSION`.
 
